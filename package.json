@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@ipld/car": "^5.4.2",
+    "@ucanto/core": "^10.4.0",
+    "form-data": "^4.0.4"
+  },
+  "devDependencies": {
+    "ethers": "^6.15.0"
+  }
+}
