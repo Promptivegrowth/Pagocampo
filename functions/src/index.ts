@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import express from "express";
 import { createHash } from "crypto";
 import Twilio from "twilio";
+import cors from 'cors';
 
 
 // -----------------------------------------------------------------------------
@@ -103,6 +104,32 @@ async function uploadReceiptToFilecoin(data: any) {
     console.error("✗ Error uploading to Lighthouse/Filecoin:", error);
     throw error;
   }
+}
+
+async function getFilecoinDeals(cid: string) {
+  const u = `https://api.lighthouse.storage/api/lighthouse/deal_status?cid=${encodeURIComponent(cid)}`;
+  const r = await fetch(u);
+  if (!r.ok) throw new Error(`deal_status failed: ${r.status}`);
+  const j = await r.json();
+
+  // La API puede responder como array raíz o como { data: [...] }
+  const arr = Array.isArray(j) ? j : (Array.isArray(j?.data) ? j.data : []);
+
+  // Normalizamos a un shape consistente + links de explorador
+  return arr.map((d: any) => {
+    const dealId = d.DealID ?? d.chainDealID ?? null;
+    const providerId = d.Provider ?? d.storageProvider ?? null;
+    return {
+      chainDealID: dealId,
+      storageProvider: providerId,
+      explorer: {
+        dealFilfox: dealId ? `https://filfox.info/en/deal/${dealId}` : null,
+        providerFilfox: (providerId ?? providerId === 0)
+          ? `https://filfox.info/en/address/f0${providerId}`
+          : null
+      }
+    };
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -299,10 +326,21 @@ async function sendToVirtualPhone(
 // Express app
 // -----------------------------------------------------------------------------
 const app = express();
+// ✅ Habilitar CORS
+app.use(cors({
+  origin: [
+    'https://pagocampo.web.app',
+    'https://pagocampo.firebaseapp.com',
+    'http://localhost:3000',
+    'http://localhost:5000'
+  ]
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// 1) Crear intento y enviar invitación  (REEMPLAZAR ESTE BLOQUE)
+// REEMPLAZA los endpoints problemáticos en tu backend
+
+// 1) POST /intents - MEJORADO
 app.post("/intents", async (req, res) => {
   try {
     const { phone, amount, code, payerName, toName, toPhone, toAddr, note } = req.body as {
@@ -311,7 +349,7 @@ app.post("/intents", async (req, res) => {
     };
 
     if (!phone || !amount || !code) {
-      return res.status(400).json({ ok: false, error: "missing fields" });
+      return res.status(400).json({ ok: false, error: "missing fields: phone, amount, code required" });
     }
 
     const amountCents = toCents(amount);
@@ -319,6 +357,7 @@ app.post("/intents", async (req, res) => {
     const payerMsisdnHash = sha256hex(phone);
     const payeeMsisdnHash = toPhone ? sha256hex(toPhone) : null;
 
+    // Escribir en Firestore
     await db.collection("intents").doc(code).set(
       {
         intentId,
@@ -339,7 +378,7 @@ app.post("/intents", async (req, res) => {
       { merge: true }
     );
 
-    // Mensaje “bonito” para el jurado (nombre emisor, monto, destinatario y clave)
+    // Enviar SMS al inbox virtual
     const whoPays = payerName ? `${payerName}` : "El usuario";
     const whoGets = toName ? ` a ${toName}` : (toPhone ? ` a ${toPhone}` : "");
     const text =
@@ -350,14 +389,24 @@ app.post("/intents", async (req, res) => {
     await sendToVirtualPhone(twilio, msgSid, virtualTo, text);
 
     console.log(`✓ Intent created: ${code}`);
-    return res.json({ ok: true, intentId });
+    
+    // ✅ Respuesta clara y correcta
+    return res.status(201).json({ 
+      ok: true, 
+      intentId, 
+      code,
+      message: "Invitación enviada correctamente" 
+    });
   } catch (e: any) {
     console.error("✗ Error creating intent:", e);
-    return res.status(500).json({ ok: false, error: String(e?.message || e) });
+    return res.status(500).json({ 
+      ok: false, 
+      error: e?.message || "Error desconocido al crear intento" 
+    });
   }
 });
 
-// 2) Webhook inbound (simulado)  (REEMPLAZAR ESTE BLOQUE)
+// 2) POST /sms/inbound - MEJORADO
 app.post("/sms/inbound", async (req, res) => {
   try {
     const from = (req.body.From || req.body.FromNumber || req.body.msisdn || "")
@@ -366,15 +415,20 @@ app.post("/sms/inbound", async (req, res) => {
     const body = (req.body.Body || req.body.text || "").toString().trim();
 
     console.log("→ INBOUND SMS:", { from, body });
-    if (!body) return res.status(200).send("OK");
+
+    if (!body) {
+      return res.status(200).json({ ok: true, message: "empty body, ignoring" });
+    }
 
     const text = body.toUpperCase();
-    if (!text.startsWith("PAGAR")) return res.status(200).send("OK");
+    if (!text.startsWith("PAGAR")) {
+      return res.status(200).json({ ok: true, message: "not a PAGAR command, ignoring" });
+    }
 
     const parts = text.split(/\s+/);
     if (parts.length < 3) {
       console.warn("⚠ Invalid SMS format");
-      return res.status(200).send("OK");
+      return res.status(400).json({ ok: false, error: "Invalid SMS format. Expected: PAGAR <amount> <code>" });
     }
 
     const amountCents = toCents(parts[1]);
@@ -385,15 +439,20 @@ app.post("/sms/inbound", async (req, res) => {
 
     console.log(`\n🚀 Processing payment: ${code}`);
 
-    // Traer intent para leer nombres, receptor y address opcional
+    // Traer intent
     const intentRef = db.collection("intents").doc(code);
     const snap = await intentRef.get();
-    const it = (snap.exists ? snap.data() : {}) as any;
+    
+    if (!snap.exists) {
+      return res.status(404).json({ ok: false, error: `No intent found with code: ${code}` });
+    }
 
+    const it = snap.data() as any;
     const payeePhone: string | null = it?.to || null;
     const payeeMsisdnHash: string | null = it?.payeeMsisdnHash || (payeePhone ? sha256hex(payeePhone) : null);
     const toAddr: string | null = it?.toAddr || null;
 
+    // Actualizar estado a PENDING
     await intentRef.set(
       {
         intentId,
@@ -408,11 +467,11 @@ app.post("/sms/inbound", async (req, res) => {
       { merge: true }
     );
 
-    // Recibo legible para Filecoin/IPFS (con nombres + clave + vista previa del SMS)
+    // Crear recibo
     const receipt = {
       version: 2,
       channel: "virtualPhone",
-      code,                       // "clave"
+      code,
       intentId,
       amountCents,
       ts,
@@ -433,16 +492,16 @@ app.post("/sms/inbound", async (req, res) => {
 
     console.log("📦 Receipt data:", receipt);
 
-    // 1) Subir a Filecoin/IPFS
+    // Subir a Filecoin
     const { cid, url, provider } = await uploadReceiptToFilecoin(receipt);
     console.log("✅ Filecoin upload complete");
 
-    // 2) Anchor en Polygon con DID (beneficiary definido por secreto S_BENEFICIARY)
+    // Anchor en Polygon
     const spaceDid = SPACE_DID_DEFAULT;
     const txHash = await anchorOnPolygon(cid, intentId, spaceDid);
     console.log("✅ Polygon anchor complete");
 
-    // 3) Guardar
+    // Guardar resultado
     await intentRef.set(
       {
         cid,
@@ -457,10 +516,20 @@ app.post("/sms/inbound", async (req, res) => {
     );
 
     console.log(`✅ Payment processed successfully: ${code}\n`);
-    return res.status(200).send("OK");
+    
+    // ✅ Respuesta exitosa clara
+    return res.status(200).json({ 
+      ok: true, 
+      code, 
+      intentId,
+      cid,
+      txHash,
+      message: "Pago procesado y anclado en Polygon" 
+    });
   } catch (e: any) {
     console.error("❌ Error processing inbound SMS:", e?.message);
-    // Persistimos el error si tenemos el code
+    
+    // Intentar guardar el error
     try {
       const maybe = (req.body.Body || req.body.text || "").toString().trim();
       const codeFromBody = maybe.split(/\s+/)?.[2];
@@ -472,7 +541,6 @@ app.post("/sms/inbound", async (req, res) => {
             errorData: {
               reason: e?.reason || null,
               code: e?.code || null,
-              data: e?.data || null,
               shortMessage: e?.shortMessage || null,
             },
             updatedAt: Date.now(),
@@ -480,8 +548,19 @@ app.post("/sms/inbound", async (req, res) => {
           { merge: true }
         );
       }
-    } catch {}
-    return res.status(200).send("OK");
+    } catch (saveErr) {
+      console.error("Could not save error to Firestore:", saveErr);
+    }
+    
+    // ❌ Respuesta de error clara
+    return res.status(500).json({ 
+      ok: false, 
+      error: e?.message || "Error procesando pago",
+      details: {
+        reason: e?.reason || null,
+        shortMessage: e?.shortMessage || null
+      }
+    });
   }
 });
 
@@ -550,6 +629,26 @@ app.get("/admin/debug", async (_req, res) => {
     });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+app.get("/admin/filecoin/deals/:cid", async (req, res) => {
+  try {
+    const { cid } = req.params as { cid?: string };
+    if (!cid) {
+      return res.status(400).json({ ok: false, error: "missing cid" });
+    }
+
+    const deals = await getFilecoinDeals(cid); // ← SOLO FILECOIN
+    // Opcional: persistir para auditoría
+    await db.collection("filecoinDeals").doc(cid).set(
+      { deals, updatedAt: Date.now() },
+      { merge: true }
+    );
+
+    return res.json({ ok: true, cid, deals });
+  } catch (e: any) {
+    return res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
 });
 

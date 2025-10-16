@@ -80,47 +80,46 @@ Formato de pago por SMS (simulado):
 PAGAR <monto> <código> [nota opcional]
 El backend usa solo los 3 primeros tokens. Lo demás puede ser comentario para la demo.
 
-macOS / Linux (bash)
-BASE="https://api-jjeai53xva-uc.a.run.app"
-
-# 1) Intento de pago: PAPA
-curl -sS -X POST "$BASE/intents" -H "Content-Type: application/json" \
-  -d '{
-    "phone":"+519168568482",
-    "amount":"25.00",
-    "code":"PC-PAPA-2025-001"
-  }'
-
-# 2) Simular inbound: PAGA PAPA
-curl -sS -X POST "$BASE/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" \
-  --data "From=%2B519168568482&Body=PAGAR%2025.00%20PC-PAPA-2025-001%20Compra%20Papa%20Yungay%2010kg"
-
-# 3) Intento de pago: ARROZ
-curl -sS -X POST "$BASE/intents" -H "Content-Type: application/json" \
-  -d '{
-    "phone":"+519168568482",
-    "amount":"21.00",
-    "code":"PC-ARROZ-2025-001"
-  }'
-
-# 4) Simular inbound: PAGA ARROZ
-curl -sS -X POST "$BASE/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" \
-  --data "From=%2B519168568482&Body=PAGAR%2021.00%20PC-ARROZ-2025-001%20Arroz%20Superior%205kg"
 
 Windows (CMD)
-set "BASE=https://api-jjeai53xva-uc.a.run.app"
+EJEMPLO 1
+INVITAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/intents" -H "Content-Type: application/json" -d "{\"phone\":\"+519168568482\",\"amount\":\"25.00\",\"code\":\"PC-GUSTAVO-2025-001\",\"payerName\":\"Juan Pérez\",\"payeeName\":\"Ana Quispe\",\"payeePhone\":\"+51999999999\",\"currency\":\"PEN\",\"items\":[{\"sku\":\"PAPA-YUNGAY\",\"name\":\"Papa Yungay\",\"qty\":\"10\",\"unit\":\"kg\",\"unitPrice\":\"2.50\"}],\"location\":{\"district\":\"Cajamarca\",\"gps\":\"-7.16,-78.5\"}}"
+PAGAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" --data "From=%2B519168568482&Body=PAGAR%2025.00%20PC-GUSTAVO-2025-001%20Compra%20en%20feria%20de%20Huambocancha"
 
-REM 1) Intento PAPA
-curl -sS -X POST "%BASE%/intents" -H "Content-Type: application/json" -d "{\"phone\":\"+519168568482\",\"amount\":\"25.00\",\"code\":\"PC-PAPA-2025-001\"}"
+EJEMPLO 2
+INVITAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/intents" -H "Content-Type: application/json" -d "{\"phone\":\"+519168568482\",\"amount\":\"21.00\",\"code\":\"PC-DANIEL-2025-001\",\"payerName\":\"María López\",\"payeeName\":\"Coop. Valle Verde\",\"payeePhone\":\"+51888888888\",\"currency\":\"PEN\",\"items\":[{\"sku\":\"ARROZ-SUP\",\"name\":\"Arroz Superior\",\"qty\":\"5\",\"unit\":\"kg\",\"unitPrice\":\"4.20\"}],\"location\":{\"district\":\"Cutervo\",\"gps\":\"-6.38,-78.81\"}}"
+PAGAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" --data "From=%2B519168568482&Body=PAGAR%2021.00%20PC-DANIEL-2025-001%20Entrega%20en%20plaza%20principal"
 
-REM 2) Inbound PAPA
-curl -sS -X POST "%BASE%/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" --data "From=%2B519168568482&Body=PAGAR%2025.00%20PC-PAPA-2025-001%20Compra%20Papa%20Yungay%2010kg"
+EJEMPLO 3
+INVITAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/intents" -H "Content-Type: application/json" -d "{\"phone\":\"+519168568482\",\"amount\":\"25.00\",\"code\":\"PC-GUSTAVO-2025-001\",\"payerName\":\"Juan Pérez\",\"toName\":\"Ana Quispe\",\"toPhone\":\"+51999999999\",\"currency\":\"PEN\",\"items\":[{\"sku\":\"PAPA-YUNGAY\",\"name\":\"Papa Yungay\",\"qty\":\"10\",\"unit\":\"kg\",\"unitPrice\":\"2.50\"}],\"location\":{\"district\":\"Cajamarca\",\"gps\":\"-7.16,-78.5\"},\"note\":\"Compra en feria de Huambocancha\"}"
+PAGAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "From=+519168568482" --data-urlencode "Body=PAGAR 25.00 PC-GUSTAVO-2025-001 Compra en feria de Huambocancha"
 
-REM 3) Intento ARROZ
-curl -sS -X POST "%BASE%/intents" -H "Content-Type: application/json" -d "{\"phone\":\"+519168568482\",\"amount\":\"21.00\",\"code\":\"PC-ARROZ-2025-001\"}"
+EJEMPLO4
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/intents" -H "Content-Type: application/json" -d "{\"phone\":\"+519168568482\",\"amount\":\"21.00\",\"code\":\"PC-DANIEL-2025-001\",\"payerName\":\"María López\",\"toName\":\"Coop. Valle Verde\",\"toPhone\":\"+51888888888\",\"currency\":\"PEN\",\"items\":[{\"sku\":\"ARROZ-SUP\",\"name\":\"Arroz Superior\",\"qty\":\"5\",\"unit\":\"kg\",\"unitPrice\":\"4.20\"}],\"location\":{\"district\":\"Cutervo\",\"gps\":\"-6.38,-78.81\"},\"note\":\"Entrega en plaza principal\"}"
+PAGAR
+curl -sS -X POST "https://api-jjeai53xva-uc.a.run.app/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "From=+519168568482" --data-urlencode "Body=PAGAR 21.00 PC-DANIEL-2025-001 Entrega en plaza principal"
 
-REM 4) Inbound ARROZ
-curl -sS -X POST "%BASE%/sms/inbound" -H "Content-Type: application/x-www-form-urlencoded" --data "From=%2B519168568482&Body=PAGAR%2021.00%20PC-ARROZ-2025-001%20Arroz%20Superior%205kg"
+PRUEBA Filecoin
+
+DESDE NUESTRO ENDPOINT
+curl "https://api-jjeai53xva-uc.a.run.app/admin/filecoin/deals/bafkreiheg7vkd7rkxnwa5en6kvyqxginqaxmoh4h4a4ott6cax4eo6gxry"
+
+DIRECTAMENTE DE Filecoin
+curl "https://api.lighthouse.storage/api/lighthouse/deal_status?cid=bafkreigvk4ibspo2jxapcky7soorurqufz3wukjf2sloog7cjgvzqtl7mi"
+
+curl "https://api.lighthouse.storage/api/lighthouse/deal_status?cid=bafkreiheg7vkd7rkxnwa5en6kvyqxginqaxmoh4h4a4ott6cax4eo6gxry"
 
 
-Puedes disparar desde cualquier PC (o desde el frontend de tu amigo) porque son simples llamadas HTTP a tu API pública.
+https://filfox.info/en/deal/
+
+
+UNLOCK prueba
+
+node check-key.mjs --rpc https://polygon-rpc.com --contract 0x4bCA0a3fE8A7ABE4F47c713905538D4F14845558 --who 0x6E51a8a6A3243C7c569793C349CE3f235850ce92
+

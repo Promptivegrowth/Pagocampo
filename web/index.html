@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#059669" />
+    <title>PagoCampo - Pagos por SMS</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        color: white;
+        font-family: system-ui, sans-serif;
+      }
+      .loader {
+        text-align: center;
+      }
+      .spinner {
+        border: 3px solid white;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        margin: 16px auto;
+        border-top-color: transparent;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loader">
+        <img src="/logo.png" alt="PagoCampo" style="width: 80px; height: 80px; margin: 16px auto; object-fit: contain;" />
+        <h1>PagoCampo</h1>
+        <p>Pagos por SMS para el campo</p>
+        <div class="spinner"></div>
+        <p style="font-size: 12px; opacity: 0.8;">Cargando aplicación...</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

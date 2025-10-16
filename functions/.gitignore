@@ -1,10 +1,28 @@
-# Compiled JavaScript files
-lib/**/*.js
-lib/**/*.js.map
-
-# TypeScript v1 declaration files
-typings/
-
-# Node.js dependency directory
+# Node / Firebase
 node_modules/
-*.local
+firebase-debug.log
+.firebaserc.local
+.functions-log.txt
+
+# Firebase build outputs
+functions/lib/
+functions/.eslintcache
+.storage/
+.coverage/
+
+# Local configs / secrets (no subir)
+.env
+.env.*
+*.secret
+*.key
+*.pem
+*.p12
+*.bak
+runtimeconfig.json
+.service-account.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
