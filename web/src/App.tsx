@@ -22,7 +22,7 @@ interface Message {
   status: 'received' | 'sent';
 }
 
-/** ---------- estilos compartidos (no cambia nada tu look) ---------- */
+
 const styles = {
   container: { minHeight: '100vh', background: 'linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)', display: 'flex', flexDirection: 'column' as const },
   header: { background: 'linear-gradient(90deg, #16a34a 0%, #059669 50%, #0d9488 100%)', color: 'white', padding: '1rem', position: 'sticky' as const, top: 0, zIndex: 50, boxShadow: '0 10px 25px rgba(0,0,0,0.15)' },
